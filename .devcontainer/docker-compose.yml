@@ -1,0 +1,79 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tests-maps-dev
+    volumes:
+      - ../:/workspace:cached
+      - /workspace/node_modules
+      - /workspace/.next
+      - node-modules-cache:/workspace/node_modules
+    ports:
+      - "3000:3000"
+      - "8080:8080"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/tilemaps
+      - PGHOST=db
+      - PGPORT=5432
+      - PGUSER=postgres
+      - PGPASSWORD=postgres
+      - PGDATABASE=tilemaps
+      - TILESERV_URL=http://tileserv:7800
+    depends_on:
+      db:
+        condition: service_healthy
+      tileserv:
+        condition: service_started
+    networks:
+      - tilemaps-network
+    command: /bin/sh -c "while sleep 1000; do :; done"
+
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: tests-maps-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tilemaps
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tilemaps-network
+
+  tileserv:
+    image: crunchydata/pg_tileserv:latest
+    container_name: tests-maps-tileserv
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: tilemaps
+    ports:
+      - "7800:7800"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tilemaps-network
+
+volumes:
+  pgdata:
+    driver: local
+  node-modules-cache:
+    driver: local
+
+networks:
+  tilemaps-network:
+    driver: bridge
