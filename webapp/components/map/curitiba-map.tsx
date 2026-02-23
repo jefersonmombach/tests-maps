@@ -6,20 +6,21 @@ import type { LatLngExpression } from "leaflet";
 const CURITIBA_SOUTH_WEST: [number, number] = [-25.64, -49.39];
 const CURITIBA_NORTH_EAST: [number, number] = [-25.31, -49.14];
 const CURITIBA_CENTER: [number, number] = [-25.4284, -49.2733];
-const INITIAL_ZOOM = 15;
+const INITIAL_ZOOM = 16;
 const MAX_ZOOM = 19;
+const MIN_FETCH_ZOOM = 8;
+const MAX_FETCH_ZOOM = 14;
 const TILESERV_BASE_URL = process.env.NEXT_PUBLIC_TILES_BASE_PATH ?? "/tiles";
 const POINTS_LAYER_ID = "public.pontos_de_interesse";
+const POINTS_LAYER_NAME = "pontos_de_interesse";
 
-type LeafletWithVectorGrid = {
-  vectorGrid: {
-    protobuf: (url: string, options?: Record<string, unknown>) => {
-      addTo: (map: unknown) => {
-        on: (eventName: string, handler: (event: VectorGridClickEvent) => void) => void;
-      };
-      on: (eventName: string, handler: (event: VectorGridClickEvent) => void) => void;
-    };
-  };
+const POINT_STYLE = {
+  radius: 7,
+  fillColor: "#86efac",
+  fillOpacity: 0.9,
+  color: "#ffffff",
+  weight: 2,
+  opacity: 1,
 };
 
 type PointProperties = {
@@ -27,13 +28,33 @@ type PointProperties = {
   categoria?: string;
 };
 
-type VectorGridClickEvent = {
-  latlng?: LatLngExpression;
-  originalEvent?: MouseEvent;
-  layer?: {
-    getLatLng?: () => LatLngExpression;
-    properties?: PointProperties;
+type GeoJsonPointGeometry = {
+  type: "Point";
+  coordinates: [number, number];
+};
+
+type GeoJsonFeature = {
+  geometry?: {
+    type?: string;
+    coordinates?: unknown;
   };
+  properties?: Record<string, unknown>;
+};
+
+type VectorTileLayerType = {
+  length: number;
+  feature: (index: number) => {
+    toGeoJSON: (x: number, y: number, z: number) => GeoJsonFeature;
+  };
+};
+
+type VectorTileType = {
+  layers: Record<string, VectorTileLayerType | undefined>;
+};
+
+type PointFeature = {
+  latlng: LatLngExpression;
+  properties: PointProperties;
 };
 
 function escapeHtml(value: string): string {
@@ -56,6 +77,105 @@ function buildPopupContent(properties: PointProperties | undefined): string {
 </div>`;
 }
 
+function longitudeToTileX(longitude: number, zoom: number): number {
+  const scale = 2 ** zoom;
+  return Math.floor(((longitude + 180) / 360) * scale);
+}
+
+function latitudeToTileY(latitude: number, zoom: number): number {
+  const scale = 2 ** zoom;
+  const latitudeInRadians = (latitude * Math.PI) / 180;
+  const mercatorProjection = Math.log(Math.tan(latitudeInRadians) + 1 / Math.cos(latitudeInRadians));
+  return Math.floor(((1 - mercatorProjection / Math.PI) / 2) * scale);
+}
+
+async function fetchPointsFromTileserv(bounds: [[number, number], [number, number]], zoom: number): Promise<PointFeature[]> {
+  const [southWest, northEast] = bounds;
+  const minX = longitudeToTileX(southWest[1], zoom);
+  const maxX = longitudeToTileX(northEast[1], zoom);
+  const minY = latitudeToTileY(northEast[0], zoom);
+  const maxY = latitudeToTileY(southWest[0], zoom);
+
+  const tileCoordinates: Array<{ x: number; y: number }> = [];
+  for (let x = minX; x <= maxX; x += 1) {
+    for (let y = minY; y <= maxY; y += 1) {
+      tileCoordinates.push({ x, y });
+    }
+  }
+
+  const [{ VectorTile }, pbfModule] = await Promise.all([import("@mapbox/vector-tile"), import("pbf")]);
+  const Pbf = pbfModule.default;
+
+  const allFeatures: PointFeature[][] = [];
+  for (const { x, y } of tileCoordinates) {
+    try {
+      const response = await fetch(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/${zoom}/${x}/${y}.pbf`, {
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        allFeatures.push([]);
+        continue;
+      }
+
+      const binaryTile = await response.arrayBuffer();
+      const vectorTile = new VectorTile(new Pbf(new Uint8Array(binaryTile))) as unknown as VectorTileType;
+      const layer = vectorTile.layers[POINTS_LAYER_NAME] ?? vectorTile.layers[POINTS_LAYER_ID];
+
+      if (!layer) {
+        allFeatures.push([]);
+        continue;
+      }
+
+      const features: PointFeature[] = [];
+      for (let index = 0; index < layer.length; index += 1) {
+        const feature = layer.feature(index).toGeoJSON(x, y, zoom) as GeoJsonFeature;
+        if (feature.geometry?.type !== "Point") {
+          continue;
+        }
+
+        if (!Array.isArray(feature.geometry.coordinates) || feature.geometry.coordinates.length < 2) {
+          continue;
+        }
+
+        const longitude = feature.geometry.coordinates[0];
+        const latitude = feature.geometry.coordinates[1];
+        if (typeof longitude !== "number" || typeof latitude !== "number") {
+          continue;
+        }
+
+        const rawNome = feature.properties?.nome;
+        const rawCategoria = feature.properties?.categoria;
+        features.push({
+          latlng: [latitude, longitude],
+          properties: {
+            nome: typeof rawNome === "string" ? rawNome : undefined,
+            categoria: typeof rawCategoria === "string" ? rawCategoria : undefined,
+          },
+        });
+      }
+
+      allFeatures.push(features);
+    } catch {
+      allFeatures.push([]);
+    }
+  }
+
+  const deduplicated = new Map<string, PointFeature>();
+
+  for (const tileFeatures of allFeatures) {
+    for (const tileFeature of tileFeatures) {
+      const [latitude, longitude] = tileFeature.latlng as [number, number];
+      const dedupeKey = `${latitude}|${longitude}|${tileFeature.properties.nome ?? ""}`;
+      if (!deduplicated.has(dedupeKey)) {
+        deduplicated.set(dedupeKey, tileFeature);
+      }
+    }
+  }
+
+  return Array.from(deduplicated.values());
+}
+
 export function CuritibaMap() {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<{
@@ -71,8 +191,6 @@ export function CuritibaMap() {
 
     const initializeMap = async () => {
       const leaflet = await import("leaflet");
-      (window as typeof window & { L?: unknown }).L = leaflet;
-      await import("leaflet.vectorgrid");
 
       if (isDisposed || !mapElementRef.current) {
         return;
@@ -94,57 +212,29 @@ export function CuritibaMap() {
         })
         .addTo(map);
 
-      const leafletWithVectorGrid = leaflet as unknown as LeafletWithVectorGrid;
-
-      const pointsLayer = leafletWithVectorGrid.vectorGrid
-        .protobuf(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/{z}/{x}/{y}.pbf`, {
-          interactive: true,
-          maxZoom: MAX_ZOOM,
-          vectorTileLayerStyles: {
-            pontos_de_interesse: {
-              radius: 12,
-              fill: true,
-              fillColor: "#dc2626",
-              fillOpacity: 0.9,
-              stroke: true,
-              color: "#ffffff",
-              weight: 2,
-              opacity: 1,
-              bubblingMouseEvents: false,
-            },
-            [POINTS_LAYER_ID]: {
-              radius: 12,
-              fill: true,
-              fillColor: "#dc2626",
-              fillOpacity: 0.9,
-              stroke: true,
-              color: "#ffffff",
-              weight: 2,
-              opacity: 1,
-              bubblingMouseEvents: false,
-            },
-          },
-        })
-        .addTo(map);
-
-      pointsLayer.on("click", (event) => {
-        const popupLatLng =
-          event.layer?.getLatLng?.() ??
-          event.latlng ??
-          (event.originalEvent ? map.mouseEventToLatLng(event.originalEvent) : undefined);
-
-        if (!popupLatLng) {
-          return;
-        }
-
-        leaflet
-          .popup()
-          .setLatLng(popupLatLng)
-          .setContent(buildPopupContent(event.layer?.properties))
-          .openOn(map);
-      });
-
       map.fitBounds(curitibaBounds);
+
+      const visibleBounds = map.getBounds();
+      const fetchZoom = Math.max(MIN_FETCH_ZOOM, Math.min(MAX_FETCH_ZOOM, map.getZoom()));
+      const points = await fetchPointsFromTileserv(
+        [
+          [visibleBounds.getSouthWest().lat, visibleBounds.getSouthWest().lng],
+          [visibleBounds.getNorthEast().lat, visibleBounds.getNorthEast().lng],
+        ],
+        fetchZoom,
+      );
+
+      if (isDisposed) {
+        return;
+      }
+
+      for (const point of points) {
+        leaflet
+          .circleMarker(point.latlng, POINT_STYLE)
+          .addTo(map)
+          .bindPopup(buildPopupContent(point.properties));
+      }
+
       mapInstanceRef.current = map;
     };
 
