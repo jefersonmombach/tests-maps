@@ -6,15 +6,10 @@ import type { LatLngExpression } from "leaflet";
 const CURITIBA_SOUTH_WEST: [number, number] = [-25.64, -49.39];
 const CURITIBA_NORTH_EAST: [number, number] = [-25.31, -49.14];
 const CURITIBA_CENTER: [number, number] = [-25.4284, -49.2733];
-const INITIAL_ZOOM = 11;
+const INITIAL_ZOOM = 15;
 const MAX_ZOOM = 19;
 const TILESERV_BASE_URL = process.env.NEXT_PUBLIC_TILES_BASE_PATH ?? "/tiles";
 const POINTS_LAYER_ID = "public.pontos_de_interesse";
-const PIN_ICON_SVG =
-  "data:image/svg+xml;utf8," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#dc2626" d="M12 2c-3.866 0-7 3.134-7 7 0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7zm0 10a3 3 0 1 1 0-6 3 3 0 0 1 0 6z"/></svg>',
-  );
 
 type LeafletWithVectorGrid = {
   vectorGrid: {
@@ -100,12 +95,6 @@ export function CuritibaMap() {
         .addTo(map);
 
       const leafletWithVectorGrid = leaflet as unknown as LeafletWithVectorGrid;
-      const pointsPinIcon = leaflet.icon({
-        iconUrl: PIN_ICON_SVG,
-        iconSize: [28, 28],
-        iconAnchor: [14, 26],
-        popupAnchor: [0, -24],
-      });
 
       const pointsLayer = leafletWithVectorGrid.vectorGrid
         .protobuf(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/{z}/{x}/{y}.pbf`, {
@@ -113,10 +102,26 @@ export function CuritibaMap() {
           maxZoom: MAX_ZOOM,
           vectorTileLayerStyles: {
             pontos_de_interesse: {
-              icon: pointsPinIcon,
+              radius: 12,
+              fill: true,
+              fillColor: "#dc2626",
+              fillOpacity: 0.9,
+              stroke: true,
+              color: "#ffffff",
+              weight: 2,
+              opacity: 1,
+              bubblingMouseEvents: false,
             },
             [POINTS_LAYER_ID]: {
-              icon: pointsPinIcon,
+              radius: 12,
+              fill: true,
+              fillColor: "#dc2626",
+              fillOpacity: 0.9,
+              stroke: true,
+              color: "#ffffff",
+              weight: 2,
+              opacity: 1,
+              bubblingMouseEvents: false,
             },
           },
         })
