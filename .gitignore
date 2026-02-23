@@ -30,3 +30,14 @@ go.work.sum
 # Editor/IDE
 # .idea/
 # .vscode/
+
+node_modules/
+dist/
+
+webapp/node_modules/
+webapp/node_modules/*
+webapp/dist/
+webapp/dist/*
+webapp/.next/
+webapp/.next/*
+webapp/package-lock.json
