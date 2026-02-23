@@ -51,7 +51,7 @@ services:
       - tilemaps-network
 
   tileserv:
-    image: crunchydata/pg_tileserv:latest
+    image: pramsey/pg_tileserv:latest
     container_name: tests-maps-tileserv
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
