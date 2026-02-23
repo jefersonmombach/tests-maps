@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "rm -rf .next && next dev --port 3000",
+    "reset:dev": "pkill -f \"next-server|next dev|next start\" || true; rm -rf .next; next dev --port 3000",
+    "build": "rm -rf .next && next build",
     "start": "next start",
     "lint": "next lint"
   },
