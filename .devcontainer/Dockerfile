@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Instalar Go Lang (última versão LTS - 1.22)
-ENV GO_VERSION=1.22.0
+# Instalar Go Lang (última versão LTS - 1.26)
+ENV GO_VERSION=1.26.0
 RUN wget -q https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
     rm go${GO_VERSION}.linux-amd64.tar.gz

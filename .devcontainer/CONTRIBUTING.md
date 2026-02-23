@@ -98,7 +98,7 @@ Acesse http://localhost:7800 para:
 |-----------|--------|-----|
 | Node.js | 22 LTS | Runtime JavaScript |
 | Next.js | Latest | Framework React |
-| Go Lang | 1.22 | Backend/APIs |
+| Go Lang | 1.26 | Backend/APIs |
 | PostgreSQL | 16 | Banco de dados |
 | PostGIS | 3.4 | Extensão geoespacial |
 | pg_tileserv | Latest | Servidor de tiles vetoriais |

@@ -4,7 +4,7 @@ Configuração de desenvolvimento containerizado com os seguintes componentes:
 
 - **Node.js**: Última versão LTS (v22)
 - **Next.js**: Última versão disponível
-- **Go Lang**: Última versão LTS (1.22)
+- **Go Lang**: Última versão LTS (1.26)
 - **PostgreSQL + PostGIS**: Container com suporte a dados geoespaciais
 - **pg_tileserv**: Servidor de tiles para servir dados do PostGIS via API
 
