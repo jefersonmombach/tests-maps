@@ -44,7 +44,7 @@
   "forwardPorts": [3000, 5432, 7800, 8080],
   "portAttributes": {
     "3000": {
-      "label": "Next.js",
+      "label": "Web App",
       "onAutoForward": "notify"
     },
     "5432": {
@@ -60,7 +60,7 @@
       "onAutoForward": "notify"
     }
   },
-  "postCreateCommand": "npm install && go version && node --version && next --version",
+  "postCreateCommand": "go version && node --version",
   "remoteEnv": {
     "DATABASE_URL": "postgresql://postgres:postgres@db:5432/tilemaps",
     "PGHOST": "db",

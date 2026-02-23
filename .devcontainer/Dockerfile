@@ -21,9 +21,6 @@ ENV PATH=$PATH:/usr/local/go/bin \
     GOPATH=/home/node/go \
     GOROOT=/usr/local/go
 
-# Instalar Next.js globalmente (será instalado via npm no projeto também)
-RUN npm install -g next
-
 # Criar usuário não-root
 RUN id -u node >/dev/null 2>&1 || useradd -m -s /bin/bash node && \
     mkdir -p /home/node/go && \
