@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import type { LatLngExpression } from "leaflet";
 
-const CURITIBA_SOUTH_WEST: [number, number] = [-25.64, -49.39];
-const CURITIBA_NORTH_EAST: [number, number] = [-25.31, -49.14];
-const CURITIBA_CENTER: [number, number] = [-25.4284, -49.2733];
+const CURITIBA_SOUTH_WEST: [number, number] = [-22.9, -42.4];
+const CURITIBA_NORTH_EAST: [number, number] = [-21.5, -40.8];
+const CURITIBA_CENTER: [number, number] = [-22.37, -41.78];
 const INITIAL_ZOOM = 16;
 const MAX_ZOOM = 19;
 const MIN_FETCH_ZOOM = 8;
@@ -13,15 +13,11 @@ const MAX_FETCH_ZOOM = 14;
 const TILESERV_BASE_URL = process.env.NEXT_PUBLIC_TILES_BASE_PATH ?? "/tiles";
 const POINTS_LAYER_ID = "public.pontos_de_interesse";
 const POINTS_LAYER_NAME = "pontos_de_interesse";
-
-const POINT_STYLE = {
-  radius: 7,
-  fillColor: "#86efac",
-  fillOpacity: 0.9,
-  color: "#ffffff",
-  weight: 2,
-  opacity: 1,
-};
+const BOAT_ICON_SVG =
+  "data:image/svg+xml;utf8," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><path fill="#0f766e" d="M9 40h46l-7 9H16z"/><path fill="#14b8a6" d="M17 31h30v9H17z"/><path fill="#ffffff" d="M29 12l13 11H29z"/><path fill="#0f766e" d="M28 12h2v20h-2z"/></svg>',
+  );
 
 type PointProperties = {
   nome?: string;
@@ -228,9 +224,16 @@ export function CuritibaMap() {
         return;
       }
 
+      const boatIcon = leaflet.icon({
+        iconUrl: BOAT_ICON_SVG,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+        popupAnchor: [0, -10],
+      });
+
       for (const point of points) {
         leaflet
-          .circleMarker(point.latlng, POINT_STYLE)
+          .marker(point.latlng, { icon: boatIcon })
           .addTo(map)
           .bindPopup(buildPopupContent(point.properties));
       }
