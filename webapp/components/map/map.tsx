@@ -72,6 +72,33 @@ export function MapView() {
     const initializeMap = async () => {
       const leaflet = await import("leaflet");
 
+      const leafletWithPatchFlag = leaflet as typeof leaflet & {
+        __vectorGridCircleMarkerPatched?: boolean;
+      };
+
+      if (!leafletWithPatchFlag.__vectorGridCircleMarkerPatched) {
+        const originalGetLatLng = leaflet.CircleMarker.prototype.getLatLng;
+
+        leaflet.CircleMarker.prototype.getLatLng = function getLatLngPatched() {
+          const currentLatLng = originalGetLatLng.call(this);
+          if (currentLatLng) {
+            return currentLatLng;
+          }
+
+          const layerPoint = (this as unknown as { _point?: { x: number; y: number } })._point;
+          const rendererMap = (this as unknown as { _renderer?: { _map?: unknown } })._renderer?._map;
+          const mapRef = rendererMap as { layerPointToLatLng?: (point: { x: number; y: number }) => unknown } | undefined;
+
+          if (layerPoint && mapRef?.layerPointToLatLng) {
+            return mapRef.layerPointToLatLng(layerPoint) as ReturnType<typeof originalGetLatLng>;
+          }
+
+          return currentLatLng;
+        };
+
+        leafletWithPatchFlag.__vectorGridCircleMarkerPatched = true;
+      }
+
       (
         globalThis as unknown as {
           L?: typeof leaflet;
@@ -156,13 +183,22 @@ export function MapView() {
       });
 
       pointsLayer.on?.("click", (event: unknown) => {
-        const typedEvent = event as { latlng?: LatLngExpression; layer?: { properties?: unknown } };
-        if (!typedEvent.latlng) {
+        const typedEvent = event as {
+          latlng?: LatLngExpression;
+          originalEvent?: MouseEvent;
+          layer?: { properties?: unknown };
+        };
+
+        const popupLatLng = typedEvent.originalEvent
+          ? map.mouseEventToLatLng(typedEvent.originalEvent)
+          : typedEvent.latlng;
+
+        if (!popupLatLng) {
           return;
         }
 
         const properties = parsePointProperties(typedEvent.layer?.properties);
-        leaflet.popup().setLatLng(typedEvent.latlng).setContent(buildPopupContent(properties)).openOn(map);
+        leaflet.popup().setLatLng(popupLatLng).setContent(buildPopupContent(properties)).openOn(map);
       });
 
       pointsLayer.addTo(map);
