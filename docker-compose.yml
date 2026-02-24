@@ -1,0 +1,74 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: tilemaps-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tilemaps
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./.devcontainer/init-db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - tilemaps-network
+
+  tileserv:
+    image: pramsey/pg_tileserv:latest
+    container_name: tilemaps-tileserv
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tilemaps-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tilemaps-backend
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      WEBAPP_ORIGIN: http://webapp
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tilemaps-network
+
+  webapp:
+    build:
+      context: ./webapp
+      dockerfile: Dockerfile
+    container_name: tilemaps-webapp
+    restart: unless-stopped
+    environment:
+      TILESERV_URL: http://tileserv:7800
+    ports:
+      - "80:80"
+    depends_on:
+      - tileserv
+      - backend
+    networks:
+      - tilemaps-network
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  tilemaps-network:
+    driver: bridge
