@@ -20,6 +20,7 @@ services:
       start_period: 10s
     networks:
       - tilemaps-network
+    command: postgres -c statement_timeout=5000
 
   tileserv:
     image: pramsey/pg_tileserv:latest
