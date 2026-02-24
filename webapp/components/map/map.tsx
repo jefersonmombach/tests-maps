@@ -24,35 +24,6 @@ type PointProperties = {
   categoria?: string;
 };
 
-type GeoJsonPointGeometry = {
-  type: "Point";
-  coordinates: [number, number];
-};
-
-type GeoJsonFeature = {
-  geometry?: {
-    type?: string;
-    coordinates?: unknown;
-  };
-  properties?: Record<string, unknown>;
-};
-
-type VectorTileLayerType = {
-  length: number;
-  feature: (index: number) => {
-    toGeoJSON: (x: number, y: number, z: number) => GeoJsonFeature;
-  };
-};
-
-type VectorTileType = {
-  layers: Record<string, VectorTileLayerType | undefined>;
-};
-
-type PointFeature = {
-  latlng: LatLngExpression;
-  properties: PointProperties;
-};
-
 function escapeHtml(value: string): string {
   return value
     .replaceAll("&", "&amp;")
@@ -73,103 +44,16 @@ function buildPopupContent(properties: PointProperties | undefined): string {
 </div>`;
 }
 
-function longitudeToTileX(longitude: number, zoom: number): number {
-  const scale = 2 ** zoom;
-  return Math.floor(((longitude + 180) / 360) * scale);
-}
-
-function latitudeToTileY(latitude: number, zoom: number): number {
-  const scale = 2 ** zoom;
-  const latitudeInRadians = (latitude * Math.PI) / 180;
-  const mercatorProjection = Math.log(Math.tan(latitudeInRadians) + 1 / Math.cos(latitudeInRadians));
-  return Math.floor(((1 - mercatorProjection / Math.PI) / 2) * scale);
-}
-
-async function fetchPointsFromTileserv(bounds: [[number, number], [number, number]], zoom: number): Promise<PointFeature[]> {
-  const [southWest, northEast] = bounds;
-  const minX = longitudeToTileX(southWest[1], zoom);
-  const maxX = longitudeToTileX(northEast[1], zoom);
-  const minY = latitudeToTileY(northEast[0], zoom);
-  const maxY = latitudeToTileY(southWest[0], zoom);
-
-  const tileCoordinates: Array<{ x: number; y: number }> = [];
-  for (let x = minX; x <= maxX; x += 1) {
-    for (let y = minY; y <= maxY; y += 1) {
-      tileCoordinates.push({ x, y });
-    }
+function parsePointProperties(input: unknown): PointProperties {
+  if (!input || typeof input !== "object") {
+    return {};
   }
 
-  const [{ VectorTile }, pbfModule] = await Promise.all([import("@mapbox/vector-tile"), import("pbf")]);
-  const Pbf = pbfModule.default;
-
-  const allFeatures: PointFeature[][] = [];
-  for (const { x, y } of tileCoordinates) {
-    try {
-      const response = await fetch(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/${zoom}/${x}/${y}.pbf`, {
-        cache: "no-store",
-      });
-
-      if (!response.ok) {
-        allFeatures.push([]);
-        continue;
-      }
-
-      const binaryTile = await response.arrayBuffer();
-      const vectorTile = new VectorTile(new Pbf(new Uint8Array(binaryTile))) as unknown as VectorTileType;
-      const layer = vectorTile.layers[POINTS_LAYER_NAME] ?? vectorTile.layers[POINTS_LAYER_ID];
-
-      if (!layer) {
-        allFeatures.push([]);
-        continue;
-      }
-
-      const features: PointFeature[] = [];
-      for (let index = 0; index < layer.length; index += 1) {
-        const feature = layer.feature(index).toGeoJSON(x, y, zoom) as GeoJsonFeature;
-        if (feature.geometry?.type !== "Point") {
-          continue;
-        }
-
-        if (!Array.isArray(feature.geometry.coordinates) || feature.geometry.coordinates.length < 2) {
-          continue;
-        }
-
-        const longitude = feature.geometry.coordinates[0];
-        const latitude = feature.geometry.coordinates[1];
-        if (typeof longitude !== "number" || typeof latitude !== "number") {
-          continue;
-        }
-
-        const rawNome = feature.properties?.nome;
-        const rawCategoria = feature.properties?.categoria;
-        features.push({
-          latlng: [latitude, longitude],
-          properties: {
-            nome: typeof rawNome === "string" ? rawNome : undefined,
-            categoria: typeof rawCategoria === "string" ? rawCategoria : undefined,
-          },
-        });
-      }
-
-      allFeatures.push(features);
-    } catch {
-      allFeatures.push([]);
-    }
-  }
-
-  const deduplicated = new Map<string, PointFeature>();
-
-  for (const tileFeatures of allFeatures) {
-    for (const tileFeature of tileFeatures) {
-      const [latitude, longitude] = tileFeature.latlng as [number, number];
-      const dedupeKey = `${latitude}|${longitude}|${tileFeature.properties.nome ?? ""}`;
-      if (!deduplicated.has(dedupeKey)) {
-        deduplicated.set(dedupeKey, tileFeature);
-      }
-    }
-  }
-
-  return Array.from(deduplicated.values());
+  const record = input as Record<string, unknown>;
+  return {
+    nome: typeof record.nome === "string" ? record.nome : undefined,
+    categoria: typeof record.categoria === "string" ? record.categoria : undefined,
+  };
 }
 
 export function MapView() {
@@ -187,6 +71,14 @@ export function MapView() {
 
     const initializeMap = async () => {
       const leaflet = await import("leaflet");
+
+      (
+        globalThis as unknown as {
+          L?: typeof leaflet;
+        }
+      ).L = leaflet;
+
+      await import("leaflet.vectorgrid");
 
       if (isDisposed || !mapElementRef.current) {
         return;
@@ -210,33 +102,72 @@ export function MapView() {
 
       map.fitBounds(mapBounds);
 
-      const visibleBounds = map.getBounds();
-      const fetchZoom = Math.max(MIN_FETCH_ZOOM, Math.min(MAX_FETCH_ZOOM, map.getZoom()));
-      const points = await fetchPointsFromTileserv(
-        [
-          [visibleBounds.getSouthWest().lat, visibleBounds.getSouthWest().lng],
-          [visibleBounds.getNorthEast().lat, visibleBounds.getNorthEast().lng],
-        ],
-        fetchZoom,
-      );
+      const vectorGridFactory = (
+        globalThis as unknown as {
+          L?: {
+            vectorGrid?: unknown;
+          };
+        }
+      ).L?.vectorGrid as
+        | {
+            protobuf: (
+              url: string,
+              options: {
+                minZoom: number;
+                maxZoom: number;
+                interactive: boolean;
+                vectorTileLayerStyles: Record<string, Record<string, unknown>>;
+              },
+            ) => {
+              addTo: (mapRef: unknown) => void;
+              on?: (eventName: string, handler: (event: unknown) => void) => void;
+            };
+          }
+        | undefined;
 
-      if (isDisposed) {
+      if (!vectorGridFactory?.protobuf) {
+        console.error("Leaflet.VectorGrid protobuf não está disponível.");
+        mapInstanceRef.current = map;
         return;
       }
 
-      const boatIcon = leaflet.icon({
-        iconUrl: BOAT_ICON_SVG,
-        iconSize: [26, 26],
-        iconAnchor: [13, 13],
-        popupAnchor: [0, -10],
+      const pointsLayer = vectorGridFactory.protobuf(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/{z}/{x}/{y}.pbf`, {
+        minZoom: MIN_FETCH_ZOOM,
+        maxZoom: MAX_ZOOM,
+        interactive: true,
+        vectorTileLayerStyles: {
+          [POINTS_LAYER_NAME]: {
+            radius: 5,
+            weight: 1,
+            color: "#0f766e",
+            fill: true,
+            fillColor: "#14b8a6",
+            fillOpacity: 0.9,
+            opacity: 1,
+          },
+          [POINTS_LAYER_ID]: {
+            radius: 5,
+            weight: 1,
+            color: "#0f766e",
+            fill: true,
+            fillColor: "#14b8a6",
+            fillOpacity: 0.9,
+            opacity: 1,
+          },
+        },
       });
 
-      for (const point of points) {
-        leaflet
-          .marker(point.latlng, { icon: boatIcon })
-          .addTo(map)
-          .bindPopup(buildPopupContent(point.properties));
-      }
+      pointsLayer.on?.("click", (event: unknown) => {
+        const typedEvent = event as { latlng?: LatLngExpression; layer?: { properties?: unknown } };
+        if (!typedEvent.latlng) {
+          return;
+        }
+
+        const properties = parsePointProperties(typedEvent.layer?.properties);
+        leaflet.popup().setLatLng(typedEvent.latlng).setContent(buildPopupContent(properties)).openOn(map);
+      });
+
+      pointsLayer.addTo(map);
 
       mapInstanceRef.current = map;
     };
