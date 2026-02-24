@@ -116,7 +116,10 @@ export function MapView() {
                 minZoom: number;
                 maxZoom: number;
                 interactive: boolean;
-                vectorTileLayerStyles: Record<string, Record<string, unknown>>;
+                vectorTileLayerStyles: Record<
+                  string,
+                  Record<string, unknown> | ((properties: unknown, zoom: number) => Record<string, unknown>)
+                >;
               },
             ) => {
               addTo: (mapRef: unknown) => void;
@@ -131,29 +134,24 @@ export function MapView() {
         return;
       }
 
+      const boatIcon = leaflet.icon({
+        iconUrl: BOAT_ICON_SVG,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+        popupAnchor: [0, -10],
+      });
+
       const pointsLayer = vectorGridFactory.protobuf(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/{z}/{x}/{y}.pbf`, {
         minZoom: MIN_FETCH_ZOOM,
         maxZoom: MAX_ZOOM,
         interactive: true,
         vectorTileLayerStyles: {
-          [POINTS_LAYER_NAME]: {
-            radius: 5,
-            weight: 1,
-            color: "#0f766e",
-            fill: true,
-            fillColor: "#14b8a6",
-            fillOpacity: 0.9,
-            opacity: 1,
-          },
-          [POINTS_LAYER_ID]: {
-            radius: 5,
-            weight: 1,
-            color: "#0f766e",
-            fill: true,
-            fillColor: "#14b8a6",
-            fillOpacity: 0.9,
-            opacity: 1,
-          },
+          [POINTS_LAYER_NAME]: () => ({
+            icon: boatIcon,
+          }),
+          [POINTS_LAYER_ID]: () => ({
+            icon: boatIcon,
+          }),
         },
       });
 
