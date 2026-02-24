@@ -11,7 +11,7 @@ services:
       - node-modules-cache:/workspace/node_modules
     ports:
       - "3000:3000"
-      - "8081:8080"
+      - "8080:8080"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/tilemaps
       - PGHOST=db
@@ -19,7 +19,7 @@ services:
       - PGUSER=postgres
       - PGPASSWORD=postgres
       - PGDATABASE=tilemaps
-      - TILESERV_URL=http://tileserv:7801
+      - TILESERV_URL=http://tileserv:7800
     depends_on:
       db:
         condition: service_healthy
@@ -37,7 +37,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: tilemaps
     ports:
-      - "5433:5432"
+      - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -61,7 +61,7 @@ services:
       PGPASSWORD: postgres
       PGDATABASE: tilemaps
     ports:
-      - "7801:7800"
+      - "7800:7800"
     depends_on:
       db:
         condition: service_healthy
