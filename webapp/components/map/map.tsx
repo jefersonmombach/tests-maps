@@ -172,7 +172,7 @@ async function fetchPointsFromTileserv(bounds: [[number, number], [number, numbe
   return Array.from(deduplicated.values());
 }
 
-export function Map() {
+export function MapView() {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<{
     remove: () => void;
