@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 import type { LatLngExpression } from "leaflet";
 
-const CURITIBA_SOUTH_WEST: [number, number] = [-22.9, -42.4];
-const CURITIBA_NORTH_EAST: [number, number] = [-21.5, -40.8];
-const CURITIBA_CENTER: [number, number] = [-22.37, -41.78];
+const SOUTH_WEST: [number, number] = [-22.9, -42.4];
+const NORTH_EAST: [number, number] = [-21.5, -40.8];
+const CENTER: [number, number] = [-22.37, -41.78];
 const INITIAL_ZOOM = 16;
 const MAX_ZOOM = 19;
 const MIN_FETCH_ZOOM = 8;
@@ -172,7 +172,7 @@ async function fetchPointsFromTileserv(bounds: [[number, number], [number, numbe
   return Array.from(deduplicated.values());
 }
 
-export function CuritibaMap() {
+export function Map() {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<{
     remove: () => void;
@@ -192,12 +192,12 @@ export function CuritibaMap() {
         return;
       }
 
-      const curitibaBounds = leaflet.latLngBounds(CURITIBA_SOUTH_WEST, CURITIBA_NORTH_EAST);
+      const mapBounds = leaflet.latLngBounds(SOUTH_WEST, NORTH_EAST);
 
       const map = leaflet.map(mapElementRef.current, {
-        center: CURITIBA_CENTER,
+        center: CENTER,
         zoom: INITIAL_ZOOM,
-        maxBounds: curitibaBounds,
+        maxBounds: mapBounds,
         maxBoundsViscosity: 1.0,
       });
 
@@ -208,7 +208,7 @@ export function CuritibaMap() {
         })
         .addTo(map);
 
-      map.fitBounds(curitibaBounds);
+      map.fitBounds(mapBounds);
 
       const visibleBounds = map.getBounds();
       const fetchZoom = Math.max(MIN_FETCH_ZOOM, Math.min(MAX_FETCH_ZOOM, map.getZoom()));
