@@ -1,0 +1,16 @@
+:80 {
+    # Proxy tile requests to pg_tileserv
+    # TILESERV_URL can be overridden at runtime, e.g. http://tileserv:7800
+    handle /tiles/* {
+        reverse_proxy {$TILESERV_URL:http://tileserv:7800}
+    }
+
+    # Serve the static Next.js export
+    handle {
+        root * /srv
+        try_files {path} {path}/ /index.html
+        file_server
+    }
+
+    encode gzip
+}
