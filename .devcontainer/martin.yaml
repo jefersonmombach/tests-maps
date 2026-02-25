@@ -1,0 +1,17 @@
+# Martin tile server configuration
+# https://maplibre.org/martin/
+#
+# listen_addresses and the database connection string are passed
+# via CLI arguments in docker-compose, so no DB config is needed here.
+
+listen_addresses: '0.0.0.0:7800'
+
+# Tile generation defaults
+keep_alive: 75
+worker_processes: 8
+
+postgres:
+  # connection_string is injected via DATABASE_URL env var at runtime
+  auto_publish:
+    from_schemas:
+      - public

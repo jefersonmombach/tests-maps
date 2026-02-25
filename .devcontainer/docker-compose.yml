@@ -19,11 +19,11 @@ services:
       - PGUSER=postgres
       - PGPASSWORD=postgres
       - PGDATABASE=tilemaps
-      - TILESERV_URL=http://tileserv:7800
+      - TILESERV_URL=http://martin:7800
     depends_on:
       db:
         condition: service_healthy
-      tileserv:
+      martin:
         condition: service_started
     networks:
       - tilemaps-network
@@ -50,18 +50,16 @@ services:
     networks:
       - tilemaps-network
 
-  tileserv:
-    image: pramsey/pg_tileserv:latest
-    container_name: tests-maps-tileserv
+  martin:
+    image: ghcr.io/maplibre/martin:latest
+    container_name: tests-maps-martin
+    command: ["--config", "/etc/martin/config.yaml"]
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
-      PGHOST: db
-      PGPORT: 5432
-      PGUSER: postgres
-      PGPASSWORD: postgres
-      PGDATABASE: tilemaps
+    volumes:
+      - ./martin.yaml:/etc/martin/config.yaml:ro
     ports:
-      - "7800:7800"
+      - "${MARTIN_HOST_PORT:-7801}:7800"
     depends_on:
       db:
         condition: service_healthy

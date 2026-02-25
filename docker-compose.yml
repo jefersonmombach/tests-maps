@@ -22,12 +22,15 @@ services:
       - tilemaps-network
     command: postgres -c statement_timeout=5000
 
-  tileserv:
-    image: pramsey/pg_tileserv:latest
-    container_name: tilemaps-tileserv
+  martin:
+    image: ghcr.io/maplibre/martin:latest
+    container_name: tilemaps-martin
     restart: unless-stopped
+    command: ["--config", "/etc/martin/config.yaml"]
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
+    volumes:
+      - ./.devcontainer/martin.yaml:/etc/martin/config.yaml:ro
     depends_on:
       db:
         condition: service_healthy
@@ -59,14 +62,14 @@ services:
     container_name: tilemaps-webapp
     restart: unless-stopped
     environment:
-      TILESERV_URL: http://tileserv:7800
+      TILESERV_URL: http://martin:7800
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - caddy_data:/data
     depends_on:
-      - tileserv
+      - martin
       - backend
     networks:
       - tilemaps-network
