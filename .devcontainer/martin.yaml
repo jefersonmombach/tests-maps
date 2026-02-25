@@ -11,7 +11,8 @@ keep_alive: 75
 worker_processes: 8
 
 postgres:
-  # connection_string is injected via DATABASE_URL env var at runtime
+  # Reference env var explicitly; Martin expands this from container env.
+  connection_string: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/tilemaps}
   auto_publish:
     from_schemas:
       - public

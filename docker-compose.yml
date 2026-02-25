@@ -31,6 +31,12 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
     volumes:
       - ./.devcontainer/martin.yaml:/etc/martin/config.yaml:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7800/catalog >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       db:
         condition: service_healthy
@@ -69,8 +75,10 @@ services:
     volumes:
       - caddy_data:/data
     depends_on:
-      - martin
-      - backend
+      martin:
+        condition: service_healthy
+      backend:
+        condition: service_started
     networks:
       - tilemaps-network
 

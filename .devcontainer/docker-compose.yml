@@ -24,7 +24,7 @@ services:
       db:
         condition: service_healthy
       martin:
-        condition: service_started
+        condition: service_healthy
     networks:
       - tilemaps-network
     command: /bin/sh -c "while sleep 1000; do :; done"
@@ -60,6 +60,12 @@ services:
       - ./martin.yaml:/etc/martin/config.yaml:ro
     ports:
       - "${MARTIN_HOST_PORT:-7801}:7800"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7800/catalog >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     depends_on:
       db:
         condition: service_healthy

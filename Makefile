@@ -1,6 +1,8 @@
-.PHONY: help setup up down restart logs clean rebuild db-connect db-backup db-restore
 
-DOCKER_COMPOSE = docker-compose -f .devcontainer/docker-compose.yml
+.PHONY: help setup up down restart logs clean rebuild docker-build build db-connect db-backup db-restore dev lint nextjs-url db-url tiles-url ps shell
+
+COMPOSE_FILE ?= .devcontainer/docker-compose.yml
+DOCKER_COMPOSE = docker compose -f $(COMPOSE_FILE)
 PROJECT_NAME = tests-maps
 
 help:
@@ -12,10 +14,12 @@ help:
 	@echo ""
 	@echo "  Setup & Infrastructure:"
 	@echo "    make setup           - Configure and start development environment"
+	@echo "    make setup COMPOSE_FILE=docker-compose.yml - Use root compose file"
 	@echo "    make up              - Start all containers"
 	@echo "    make down            - Stop all containers"
 	@echo "    make restart         - Restart all containers"
 	@echo "    make logs            - View container logs"
+	@echo "    make docker-build    - Build Docker images"
 	@echo "    make rebuild         - Rebuild Docker images"
 	@echo "    make clean           - Remove containers and volumes"
 	@echo ""
@@ -34,7 +38,7 @@ help:
 	@echo "    make db-url          - Show Database URL"
 	@echo "    make tiles-url       - Show Tile Server URL"
 
-setup: build up
+setup: docker-build up
 	@echo "✅ Development environment is ready!"
 	@echo ""
 	@echo "Next steps:"
@@ -42,7 +46,7 @@ setup: build up
 	@echo "2. Wait for extensions to install"
 	@echo "3. Run: npm install"
 
-build:
+docker-build:
 	@echo "🔨 Building Docker images..."
 	$(DOCKER_COMPOSE) build
 
@@ -72,7 +76,7 @@ clean:
 	$(DOCKER_COMPOSE) down -v
 	@echo "✅ Clean complete"
 
-rebuild: clean build up
+rebuild: clean docker-build up
 	@echo "✅ Rebuild complete"
 
 db-connect:
