@@ -67,6 +67,8 @@
     "PGPORT": "5432",
     "PGUSER": "postgres",
     "PGPASSWORD": "postgres",
-    "PGDATABASE": "tilemaps"
+    "PGDATABASE": "tilemaps",
+    "NEXT_PUBLIC_TILES_BASE_PATH": "/tiles",
+    "TILESERV_URL": "http://martin:7800"
   }
 }

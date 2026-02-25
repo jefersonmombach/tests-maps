@@ -10,9 +10,8 @@ const INITIAL_ZOOM = 16;
 const MAX_ZOOM = 19;
 const MIN_FETCH_ZOOM = 8;
 const MAX_FETCH_ZOOM = 14;
-const TILESERV_BASE_URL = process.env.NEXT_PUBLIC_TILES_BASE_PATH ?? "/tiles";
-const POINTS_LAYER_ID = "public.pontos_de_interesse";
-const POINTS_LAYER_NAME = "pontos_de_interesse";
+const TILESERV_BASE_URL = process.env.NEXT_PUBLIC_TILES_BASE_PATH || "/tiles";
+const POINTS_LAYER_ID = "pontos_de_interesse";
 const BOAT_ICON_SVG =
   "data:image/svg+xml;utf8," +
   encodeURIComponent(
@@ -168,14 +167,12 @@ export function MapView() {
         popupAnchor: [0, -10],
       });
 
-      const pointsLayer = vectorGridFactory.protobuf(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/{z}/{x}/{y}.pbf`, {
+      // Martin publica a tabela como /{table_name}/{z}/{x}/{y} (sem schema)
+      const pointsLayer = vectorGridFactory.protobuf(`${TILESERV_BASE_URL}/${POINTS_LAYER_ID}/{z}/{x}/{y}`, {
         minZoom: MIN_FETCH_ZOOM,
         maxZoom: MAX_ZOOM,
         interactive: true,
         vectorTileLayerStyles: {
-          [POINTS_LAYER_NAME]: () => ({
-            icon: boatIcon,
-          }),
           [POINTS_LAYER_ID]: () => ({
             icon: boatIcon,
           }),

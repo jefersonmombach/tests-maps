@@ -20,6 +20,7 @@ services:
       - PGPASSWORD=postgres
       - PGDATABASE=tilemaps
       - TILESERV_URL=http://martin:7800
+      - NEXT_PUBLIC_TILES_BASE_PATH=/tiles
     depends_on:
       db:
         condition: service_healthy
