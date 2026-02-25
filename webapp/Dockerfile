@@ -27,5 +27,7 @@ COPY Caddyfile /etc/caddy/Caddyfile
 # Copy the static export produced by Next.js
 COPY --from=builder /app/out /srv
 
+VOLUME ["/data", "/config"]
+
 EXPOSE 80
 EXPOSE 443

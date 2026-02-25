@@ -76,6 +76,7 @@ services:
       - "443:443"
     volumes:
       - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       martin:
         condition: service_healthy
@@ -88,6 +89,8 @@ volumes:
   pgdata:
     driver: local
   caddy_data:
+    driver: local
+  caddy_config:
     driver: local
 
 networks:
