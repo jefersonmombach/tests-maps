@@ -31,8 +31,6 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
     volumes:
       - ./.devcontainer/martin.yaml:/etc/martin/config.yaml:ro
-    ports:
-      - "7800:7800"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:7800/catalog >/dev/null"]
       interval: 10s
@@ -67,11 +65,8 @@ services:
     build:
       context: ./webapp
       dockerfile: Dockerfile
-      args:
-        # URL pública do Martin para o browser buscar tiles diretamente.
-        # Defina SERVER_HOST no arquivo .env da raiz antes de fazer o build.
-        # Exemplo: SERVER_HOST=embarcacoes.msousa.net
-        NEXT_PUBLIC_TILES_BASE_PATH: "http://${SERVER_HOST:-localhost}:7800"
+      # NEXT_PUBLIC_TILES_BASE_PATH não é definido aqui — usa o padrão /tiles
+      # do Dockerfile, e o Caddy faz o proxy /tiles/* → martin:7800 com HTTPS.
     container_name: tilemaps-webapp
     restart: unless-stopped
     environment:
