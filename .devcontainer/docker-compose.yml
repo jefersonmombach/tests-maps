@@ -25,13 +25,13 @@ services:
       db:
         condition: service_healthy
       martin:
-        condition: service_healthy
+        condition: service_started
     networks:
       - tilemaps-network
     command: /bin/sh -c "while sleep 1000; do :; done"
 
   db:
-    image: postgis/postgis:15-3.5-alpine
+    image: postgis/postgis:18-3.6-alpine
     container_name: tests-maps-db
     environment:
       POSTGRES_USER: postgres
@@ -43,10 +43,10 @@ services:
       - pgdata:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d tilemaps && psql -U postgres -d tilemaps -c \"SELECT 1 FROM pg_tables WHERE tablename='pontos_de_interesse'\" | grep -q '1 row'"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 20
       start_period: 10s
     networks:
       - tilemaps-network
@@ -54,6 +54,7 @@ services:
   martin:
     image: ghcr.io/maplibre/martin:latest
     container_name: tests-maps-martin
+    restart: on-failure
     command: ["--config", "/etc/martin/config.yaml"]
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/tilemaps
