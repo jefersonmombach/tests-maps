@@ -41,3 +41,6 @@ webapp/dist/*
 webapp/.next/
 webapp/.next/*
 webapp/package-lock.json
+
+# Kubernetes secrets — nunca faça commit de senhas reais
+k8s/secrets.yaml
