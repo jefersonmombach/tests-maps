@@ -24,7 +24,6 @@ services:
 
   martin:
     image: ghcr.io/maplibre/martin:latest
-    container_name: tilemaps-martin
     restart: unless-stopped
     command: ["--config", "/etc/martin/config.yaml"]
     environment:
